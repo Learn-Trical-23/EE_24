@@ -1,0 +1,43 @@
+import { Link, NavLink } from "react-router-dom";
+import { useAuth } from "../../contexts/auth-context";
+
+const Navbar = () => {
+  const { user, logout } = useAuth();
+
+  return (
+    <header className="border-b border-white/10 backdrop-blur-glass bg-white/5 sticky top-0 z-40">
+      <div className="container-page h-16 flex items-center px-1 md:px-2">
+        <Link to="/" className="font-semibold text-lg tracking-wide text-left mr-auto">
+          EE_Tamils LMS
+        </Link>
+        <nav className="flex items-center gap-4 text-sm ml-auto">
+          <NavLink
+            to="/"
+            className={({ isActive }) =>
+              isActive ? "text-neon-blue" : "text-white/80 hover:text-white"
+            }
+          >
+            Dashboard
+          </NavLink>
+          {user?.role === "super_admin" && (
+            <NavLink
+              to="/admin"
+              className={({ isActive }) =>
+                isActive ? "text-neon-purple" : "text-white/80 hover:text-white"
+              }
+            >
+              Control
+            </NavLink>
+          )}
+          {user ? (
+            <button className="btn-secondary" onClick={logout}>
+              Logout
+            </button>
+          ) : null}
+        </nav>
+      </div>
+    </header>
+  );
+};
+
+export default Navbar;
