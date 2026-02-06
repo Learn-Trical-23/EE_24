@@ -164,7 +164,9 @@ const UploadDialog = ({
       setFile(null);
       setFileError(null);
       onUploaded?.();
-      handleOpenChange(false);
+      if (handleOpenChange) {
+        handleOpenChange(false);
+      }
     } finally {
       setSaving(false);
     }
