@@ -30,11 +30,7 @@ const AdminDashboard = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  return (
-    <div className="space-y-6">
-      {/* Admin dashboard cards removed as requested */}
-    </div>
-  );
+  return null;
 };
 
 export default AdminDashboard;
