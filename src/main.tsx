@@ -8,6 +8,7 @@ import { AuthProvider } from "./contexts/auth-context";
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter
+      basename="EE_24"
       future={{
         v7_startTransition: true,
         v7_relativeSplatPath: true,
