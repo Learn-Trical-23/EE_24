@@ -61,8 +61,8 @@ const SubjectSection = ({ title, items, subjectId, sectionKey, onEdit, onDelete,
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   return (
-    <section className="glass-card p-6">
-      <div className="flex items-center justify-between gap-4">
+    <section className="glass-card p-4 sm:p-6 w-full">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4">
         <div>
           <h3 className="section-title">{title}</h3>
           <p className="text-sm text-white/60">Resources listed in order.</p>
@@ -79,18 +79,18 @@ const SubjectSection = ({ title, items, subjectId, sectionKey, onEdit, onDelete,
         ) : (
           <div className="divide-y divide-white/10">
             {items.map((item) => (
-              <div key={item.id} className="flex items-start gap-3 py-3">
+              <div key={item.id} className="flex flex-col sm:flex-row items-start gap-2 sm:gap-3 py-3">
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-neon-blue" aria-label="Book">
                   📖
                 </span>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   {item.title ? <h4 className="font-medium">{item.title}</h4> : null}
                   {item.description ? (
                     <p className="text-sm text-white/60">{item.description}</p>
                   ) : null}
                   <p className="text-xs text-white/40">Last update {item.uploadedAt}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0">
                   {/* View Button: open file in new tab if storagePath or linkUrl exists */}
                   {item.storagePath || item.linkUrl ? (
                     <Button asChild variant="info" size="sm">

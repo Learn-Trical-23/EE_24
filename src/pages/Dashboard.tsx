@@ -150,7 +150,7 @@ const Dashboard = () => {
             onChange={(event) => setQuery(event.target.value)}
           />
         </div>
-        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filteredSubjects.map((subject) => (
             <Link key={subject.id} to={`/subjects/${subject.id}`}>
               <Card className="h-full subject-card transition-transform duration-150 active:scale-95 focus-within:scale-95">

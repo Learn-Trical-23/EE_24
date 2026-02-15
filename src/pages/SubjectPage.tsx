@@ -257,7 +257,7 @@ const SubjectPage = () => {
   const currentSection = sections.find((section) => section.key === activeSection);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-2 sm:px-0">
       <div className="subject-full">
         {sidebarOpen && (
           <button
@@ -267,11 +267,11 @@ const SubjectPage = () => {
             onClick={() => setSidebarOpen(false)}
           />
         )}
-        <div className="grid grid-cols-1 lg:grid-cols-[160px_1fr] gap-6 subject-shell">
+        <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr] gap-4 subject-shell">
         <aside
-          className={`glass-card p-4 subject-scroll mobile-sidebar ${
+          className={`glass-card p-3 sm:p-4 subject-scroll mobile-sidebar ${
             sidebarOpen ? "mobile-sidebar-open" : ""
-          }`}
+          } w-full lg:max-w-xs lg:mx-0`}
         >
           <h2 className="section-title mb-4">Sections</h2>
           <div className="flex flex-col gap-2 text-sm">
@@ -294,7 +294,7 @@ const SubjectPage = () => {
             ))}
           </div>
         </aside>
-        <div className="space-y-4 subject-scroll">
+        <div className="space-y-4 subject-scroll w-full">
           <div className="glass-card p-4 flex items-center justify-between gap-4">
             <button
               type="button"
