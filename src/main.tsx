@@ -9,7 +9,13 @@ import { AuthProvider } from "./contexts/auth-context";
 // Register service worker for PWA support
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js');
+    // use Vite base URL so service-worker.js is fetched from the correct path
+    const swUrl = `${import.meta.env.BASE_URL}service-worker.js`;
+    navigator.serviceWorker.register(swUrl).catch((err) => {
+      // swallow registration errors in dev and log for debugging
+      // eslint-disable-next-line no-console
+      console.warn('ServiceWorker registration failed:', err);
+    });
   });
 }
 

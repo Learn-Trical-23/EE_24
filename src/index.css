@@ -183,10 +183,24 @@ body {
 }
 
 .container-page {
-  max-width: 72rem;
+  /* increased max-width so content has smaller side-gutters on large screens */
+  max-width: 1200px; /* ~75rem */
+  width: 100%;
   margin: 0 auto;
   padding-left: 1rem;
   padding-right: 1rem;
+}
+
+/* wider containers for very large viewports */
+@media (min-width: 1400px) {
+  .container-page {
+    max-width: 1400px;
+  }
+}
+@media (min-width: 1800px) {
+  .container-page {
+    max-width: 1600px;
+  }
 }
 
 .subject-card {
