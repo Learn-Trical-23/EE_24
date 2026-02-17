@@ -16,6 +16,7 @@ const buttonVariants = cva(
         danger: "btn-danger",
         download: "btn-download",
         back: "btn-back",
+        video: "btn-video",
       },
       size: {
         default: "h-10 px-4",

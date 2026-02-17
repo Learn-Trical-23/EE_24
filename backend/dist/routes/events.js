@@ -1,10 +1,19 @@
 import { Router } from "express";
 import { authenticate, requireRole } from "../middleware/auth.js";
 import { pool } from "../db.js";
+import { cleanupPastEvents } from "../cleanup.js";
 const eventsRouter = Router();
 // List events (public - used by client sidebar)
 eventsRouter.get("/", async (_req, res) => {
     try {
+        // ensure expired events are removed immediately when listing (also update central cleanup status)
+        try {
+            await cleanupPastEvents();
+        }
+        catch (e) {
+            // non-fatal — cleanup runs periodically as well
+            console.debug('GET /api/events: cleanup attempt failed', e);
+        }
         const result = await pool.query(`SELECT id, title, datetime, mention_date, module, kind, created_by, created_at FROM events ORDER BY datetime ASC`);
         return res.json({ data: result.rows });
     }

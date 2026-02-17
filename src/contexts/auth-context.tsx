@@ -92,52 +92,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         });
 
         // attempt to obtain a backend API JWT (dev-friendly flow)
+        // NOTE: require explicit VITE_API_URL — do NOT rely on relative `/health` or proxied paths
         (async () => {
           try {
-            const API_URL = import.meta.env.VITE_API_URL ?? "";
-
-            // quick health-checks (try configured API_URL first, then relative)
-            const healthUrls = [] as string[];
-            if (API_URL) healthUrls.push(API_URL.replace(/\/$/, '') + "/health");
-            healthUrls.push('/health');
-
-            let backendAlive = false;
-            for (const url of healthUrls) {
-              try {
-                const h = await fetch(url, { method: 'GET' });
-                if (h.ok) { backendAlive = true; break; }
-              } catch (e) {
-                /* ignore - try next */
-              }
-            }
-
-            if (!backendAlive) {
-              // backend unavailable — skip backend login silently
+            const API_URL = import.meta.env.VITE_API_URL;
+            if (!API_URL) {
+              // backend not configured — skip backend login
               return;
             }
 
-            // try relative path first (uses Vite proxy in dev), then absolute API_URL if provided
-            const loginPaths = ['/api/auth/login'];
-            if (API_URL) loginPaths.push(API_URL.replace(/\/$/, '') + '/api/auth/login');
+            const base = API_URL.replace(/\/$/, '');
 
-            for (const path of loginPaths) {
-              try {
-                const res = await fetch(path, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ email: session.user.email }),
-                });
-                if (!res.ok) continue;
-                const body = await res.json();
-                const apiToken = body.token as string | undefined;
-                setUser((prev) => (prev ? { ...prev, apiToken } : prev));
-                break;
-              } catch (e) {
-                /* try next path */
-              }
+            // 1) health check against the configured backend only
+            try {
+              const h = await fetch(`${base}/health`, { method: 'GET' });
+              if (!h.ok) return; // backend not healthy
+            } catch (e) {
+              return; // unreachable backend
+            }
+
+            // 2) login to backend API to obtain API JWT
+            try {
+              const res = await fetch(`${base}/api/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: session.user.email }),
+              });
+              if (!res.ok) return;
+              const body = await res.json();
+              const apiToken = body.token as string | undefined;
+              setUser((prev) => (prev ? { ...prev, apiToken } : prev));
+            } catch (e) {
+              /* ignore backend login failures — dev convenience only */
             }
           } catch (err) {
-            // silent: backend auth is an optional dev convenience
             console.debug('backend auth login skipped or failed', err);
           }
         })();

@@ -126,6 +126,13 @@ const SubjectSection = ({ title, items, subjectId, sectionKey, onEdit, onDelete,
                       Download
                     </Button>
                   )}
+
+                  {/* Video button for Kuppi section (opens external video link in new tab) */}
+                  {sectionKey === 'kuppi' && item.videoLink ? (
+                    <Button asChild variant="video" size="sm">
+                      <a href={item.videoLink} target="_blank" rel="noopener noreferrer" aria-label="Open video in new tab">Video</a>
+                    </Button>
+                  ) : null}
                   {canEdit && (
                     <>
                       <Button

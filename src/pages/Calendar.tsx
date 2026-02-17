@@ -14,6 +14,8 @@ const Calendar = () => {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
+  const [cleanupStatus, setCleanupStatus] = useState<{ lastRun?: string | null; lastRemoved?: number | null } | null>(null);
+
   useEffect(() => {
     const load = async () => {
       setLoaded(false);
@@ -36,11 +38,71 @@ const Calendar = () => {
           }
         } catch (sbErr) {
           console.debug('Supabase fallback failed:', sbErr);
-        }      } finally {
+        }
+      } finally {
         setLoaded(true);
       }
     };
+
     load();
+
+    // poll cleanup-status so developer can see the auto-delete runs
+    const loadCleanupStatus = async () => {
+      try {
+        const res = await fetch('/api/internal/cleanup-status');
+        if (!res.ok) return;
+        const body = await res.json();
+        setCleanupStatus(body);
+      } catch (e) {
+        // ignore — status is optional
+      }
+    };
+    loadCleanupStatus();
+    const pollId = setInterval(loadCleanupStatus, 60_000);
+
+    return () => clearInterval(pollId);
+  }, []);
+
+  // Realtime subscription: auto-refresh when `events` change in Supabase (INSERT / UPDATE / DELETE)
+  useEffect(() => {
+    const channel = supabaseClient
+      .channel('public:events')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, (payload: any) => {
+        try {
+          const type = payload.eventType ?? payload.type ?? payload.event;
+          const newRow = payload.new ?? payload.record ?? null;
+          const oldRow = payload.old ?? null;
+          if (!newRow && !oldRow) return;
+
+          setEvents((prev) => {
+            const list = (prev || []).slice();
+
+            if (type === 'INSERT') {
+              // avoid duplicate when this client already added the event
+              if (!list.some((x) => x.id === newRow.id)) list.push(newRow);
+            } else if (type === 'UPDATE') {
+              const idx = list.findIndex((x) => x.id === newRow.id);
+              if (idx !== -1) list[idx] = newRow; else list.push(newRow);
+            } else if (type === 'DELETE') {
+              return list.filter((x) => x.id !== (oldRow?.id ?? newRow?.id));
+            }
+
+            return list.sort((a: any, b: any) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+          });
+        } catch (err) {
+          console.debug('Realtime handler error', err);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      try {
+        supabaseClient.removeChannel(channel);
+      } catch (e) {
+        // best-effort cleanup
+        console.debug('Failed to remove realtime channel', e);
+      }
+    };
   }, []);
 
   const formatEventTime = (iso: string) => {
@@ -52,9 +114,21 @@ const Calendar = () => {
     return d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" }) + ` · ${time}`;
   };
 
+  // hide past events from the UI (only show upcoming events)
+  const now = new Date();
+
+  const sortByDatetimeAsc = (arr: Array<any>) =>
+    arr.slice().sort((a: any, b: any) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+
+  const upcomingEvents = sortByDatetimeAsc(
+    events.filter((ev) => new Date(ev.datetime).getTime() >= now.getTime())
+  );
+
   const visibleEvents = selectedDate
-    ? events.filter((ev) => new Date(ev.datetime).toDateString() === new Date(selectedDate).toDateString())
-    : events; 
+    ? sortByDatetimeAsc(
+        upcomingEvents.filter((ev) => new Date(ev.datetime).toDateString() === new Date(selectedDate).toDateString())
+      )
+    : upcomingEvents; 
 
   return (
     <div className="min-h-[calc(100vh-6rem)] py-6 px-4 lg:px-8">
@@ -65,11 +139,47 @@ const Calendar = () => {
               <div>
                 <div className="text-sm font-semibold">Upcoming events</div>
                 <div className="text-xs text-white/60 mt-1">{selectedDate ? `Events for ${new Date(selectedDate).toLocaleDateString()}` : 'Events & deadlines'}</div>
+                <div className="text-2xs text-white/40 mt-1">Last cleanup: {cleanupStatus?.lastRun ? new Date(cleanupStatus.lastRun).toLocaleString() : 'n/a'}{cleanupStatus?.lastRemoved != null ? ` — removed ${cleanupStatus.lastRemoved}` : ''}</div>
               </div> 
 
               <div className="flex items-center gap-2">
                 {user && (user.role === "admin" || user.role === "super_admin") && (
-                  <AddEventDialog onAdd={(ev) => setEvents((p) => [ev, ...p])} />
+                  <AddEventDialog
+                    onAdd={(ev) =>
+                      setEvents((p) => {
+                        const next = (p || []).concat(ev);
+                        return next.slice().sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+                      })
+                    }
+                  />
+                )}
+
+                {/* Run cleanup now (admin only) */}
+                {user && (user.role === "admin" || user.role === "super_admin") && (
+                  <button
+                    className="text-2xs text-white/60 hover:underline ml-2"
+                    onClick={async () => {
+                      try {
+                        const r = await fetch('/api/internal/run-cleanup', { method: 'POST' });
+                        if (!r.ok) throw new Error('cleanup failed');
+                        const body = await r.json();
+                        setCleanupStatus(body.status ?? null);
+                        // refresh events immediately
+                        const { data, error } = await supabaseClient.from('events').select('*');
+                        if (!error && data) {
+                          const sorted = data.slice().sort((a: any, b: any) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+                          setEvents(sorted);
+                        }
+                        alert('Cleanup executed — check status line');
+                      } catch (err) {
+                        console.error(err);
+                        alert('Failed to run cleanup');
+                      }
+                    }}
+                    title="Run cleanup now"
+                  >
+                    Run cleanup
+                  </button>
                 )}
 
                 <Link to="/" className="text-xs text-white/60 hover:underline">
@@ -120,7 +230,10 @@ const Calendar = () => {
                     <div className="flex flex-col gap-2 items-end">
                       <AddEventDialog
                         initialEvent={{ id: ev.id, title: ev.title, datetime: ev.datetime, module: ev.module ?? "", kind: (ev.kind === 'assignment' || ev.kind === 'quiz') ? ev.kind : 'other' }}
-                        onUpdate={(updated) => setEvents((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))}
+                        onUpdate={(updated) => setEvents((prev) => {
+                        const next = (prev || []).map((x) => (x.id === updated.id ? updated : x));
+                        return next.slice().sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+                      })}
                         triggerClassName="btn-ghost px-2 py-1 text-xs"
                         triggerChildren={<span>Edit</span>}
                       />
@@ -149,7 +262,7 @@ const Calendar = () => {
               {loaded && (
                 <div className="mt-4 border-t border-white/6 pt-4">
                   <div className="text-xs text-white/60 mb-2">Month</div>
-                  <MonthCalendar compact events={events} selectedDate={selectedDate} onSelectDate={(d: string | null) => setSelectedDate(d)} />
+                  <MonthCalendar compact events={upcomingEvents} selectedDate={selectedDate} onSelectDate={(d: string | null) => setSelectedDate(d)} />
                 </div>
               )}
             </CardContent>
@@ -169,7 +282,7 @@ const Calendar = () => {
 
             <CardContent>
               <MonthCalendar
-                events={events}
+                events={upcomingEvents}
                 selectedDate={selectedDate}
                 onSelectDate={(d: string | null) => setSelectedDate(d)}
               />

@@ -6,9 +6,13 @@ export const authRouter = Router();
 // Supabase-like auth flow: returns JWT with role claim.
 authRouter.post("/login", async (req, res) => {
     const { email } = req.body;
-    const users = await query("SELECT id, role, full_name FROM profiles WHERE email = $1", [email]);
+    let users = await query("SELECT id, role, full_name FROM profiles WHERE email = $1", [email]);
+    // If the profile doesn't exist in the backend DB, create a minimal member profile so
+    // the backend can issue a JWT for the currently authenticated Supabase user.
     if (users.length === 0) {
-        return res.status(401).json({ message: "Invalid credentials" });
+        const displayName = email.split('@')[0];
+        const inserted = await query("INSERT INTO profiles (full_name, email, role) VALUES ($1, $2, $3) RETURNING id, role, full_name", [displayName, email, 'member']);
+        users = inserted;
     }
     const user = users[0];
     const token = jwt.sign({ sub: user.id, role: user.role }, process.env.JWT_SECRET ?? "dev-secret", { expiresIn: "1d" });

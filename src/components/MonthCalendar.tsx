@@ -111,6 +111,7 @@ export default function MonthCalendar({ events, selectedDate = null, onSelectDat
               const evs = eventsByDate.get(key) ?? [];
               const selected = isSelected(cell);
               const hasMention = mentionDates.has(key);
+              const hasEvents = evs.length > 0;
 
               if (compact) {
                 return (
@@ -122,13 +123,13 @@ export default function MonthCalendar({ events, selectedDate = null, onSelectDat
                     aria-pressed={selected}
                     title={`${cell.toDateString()} — ${evs.length} event(s)`}
                   >
-                    <div className={`w-5 h-5 flex items-center justify-center text-[11px] ${selected ? 'bg-violet-600 text-white rounded-full font-semibold' : ''} ${hasMention ? 'ring-2 ring-red-500 rounded-full' : ''}`}>
+                    <div className={`w-5 h-5 flex items-center justify-center text-[11px] ${selected ? 'bg-violet-600 text-white rounded-full font-semibold' : ''} ${hasMention ? 'ring-2 ring-red-500 rounded-full' : ''} ${hasEvents && !selected ? 'text-red-400 font-semibold' : ''}`}>
                       {cell.getDate()}
                     </div>
 
                     <div className="mt-1 flex gap-0.5">
                       {evs.slice(0, 3).map((_, idx) => (
-                        <span key={idx} className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />
+                        <span key={idx} className={`w-1.5 h-1.5 rounded-full inline-block ${hasEvents ? 'bg-red-400' : 'bg-violet-500'}`} />
                       ))}
                     </div>
                   </button>
@@ -145,11 +146,11 @@ export default function MonthCalendar({ events, selectedDate = null, onSelectDat
                   title={`${cell.toDateString()} — ${evs.length} event(s)`}
                 >
                   <div className="flex items-start justify-between">
-                    <div className={`w-6 h-6 flex items-center justify-center text-xs ${selected ? 'bg-violet-600 text-white rounded-full font-semibold' : ''} ${hasMention ? 'ring-2 ring-red-500 rounded-full' : ''}`}>
+                    <div className={`w-6 h-6 flex items-center justify-center text-xs ${selected ? 'bg-violet-600 text-white rounded-full font-semibold' : ''} ${hasMention ? 'ring-2 ring-red-500 rounded-full' : ''} ${hasEvents && !selected ? 'text-red-400 font-semibold' : ''}`}>
                       {cell.getDate()}
                     </div>
 
-                    {evs.length > 0 && <div className="text-xs text-white/70">{evs.length}</div>}
+                    {evs.length > 0 && <div className={`text-xs ${hasEvents ? 'text-red-400' : 'text-white/70'}`}>{evs.length}</div>}
                   </div>
 
                   <div className="mt-1 text-xs text-white/60 overflow-hidden">
