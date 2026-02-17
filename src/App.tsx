@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import AccessDenied from "./pages/AccessDenied";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminRequests from "./pages/admin/AdminRequests";
+import Calendar from "./pages/Calendar";
 import { RequireRole } from "./components/layout/RequireRole";
 
 const App = () => {
@@ -17,6 +18,7 @@ const App = () => {
           <Route index element={<Dashboard />} />
           <Route path="login" element={<Login />} />
           <Route path="subjects/:subjectId" element={<SubjectPage />} />
+          <Route path="calendar" element={/* full-page copy of sidebar */ <Calendar /> } />
           <Route path="access-denied" element={<AccessDenied />} />
         </Route>
 

@@ -7,7 +7,9 @@ export default defineConfig({
   base: "/EE_24/",
   server: {
     proxy: {
-      '/api': 'http://localhost:3000',
+      // proxy API calls and health check to backend dev server
+      '/api': 'http://localhost:4000',
+      '/health': 'http://localhost:4000',
     },
   },
   // For GitHub Pages SPA routing, 404.html is handled in postbuild script

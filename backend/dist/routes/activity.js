@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../middleware/auth";
-import { query } from "../db";
+import { authenticate, requireRole } from "../middleware/auth.js";
+import { query } from "../db.js";
 export const activityRouter = Router();
 // Get latest 15 activities (upload/edit/delete) with user info
 activityRouter.get("/latest", authenticate, requireRole(["admin", "super_admin"]), async (_req, res) => {

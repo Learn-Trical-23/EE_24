@@ -1,6 +1,6 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
-import { query } from "../db";
+import { query } from "../db.js";
 export const authRouter = Router();
 // POST /api/auth/login
 // Supabase-like auth flow: returns JWT with role claim.

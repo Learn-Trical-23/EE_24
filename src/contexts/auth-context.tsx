@@ -7,7 +7,8 @@ export interface UserSession {
   id: string;
   name: string;
   role: Role;
-  token: string;
+  token: string; // Supabase access token
+  apiToken?: string; // backend API JWT
 }
 
 interface AuthContextValue {
@@ -31,46 +32,124 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const loadSession = async () => {
-      const { data } = await supabaseClient.auth.getSession();
-      const session = data.session;
-      if (!session?.user) {
-        setUser(null);
-        return;
-      }
-      let { data: profile } = await supabaseClient
-        .from("profiles")
-        .select("id, full_name, role")
-        .eq("id", session.user.id)
-        .maybeSingle<ProfileRow>();
+      try {
+        const { data, error } = await supabaseClient.auth.getSession();
 
-      const fallbackName =
-        (session.user.user_metadata as { full_name?: string } | undefined)?.full_name ??
-        session.user.email ??
-        "Member";
+        // handle Supabase returned error (e.g. invalid/expired refresh token)
+        if (error) {
+          const msg = String((error as any)?.message ?? error);
+          if (/invalid refresh token/i.test(msg)) {
+            // clear local session to stop repeated refresh attempts and surface a clean state
+            await supabaseClient.auth.signOut();
+            setUser(null);
+            return;
+          }
+          console.warn('supabase.auth.getSession error:', error);
+          setUser(null);
+          return;
+        }
 
-      if (!profile) {
-        const { data: createdProfile } = await supabaseClient
+        const session = data.session;
+        if (!session?.user) {
+          setUser(null);
+          return;
+        }
+
+        let { data: profile } = await supabaseClient
           .from("profiles")
-          .upsert({
-            id: session.user.id,
-            full_name: fallbackName,
-            email: session.user.email ?? "",
-            role: "member",
-          })
           .select("id, full_name, role")
+          .eq("id", session.user.id)
           .maybeSingle<ProfileRow>();
 
-        if (createdProfile) {
-          profile = createdProfile;
-        }
-      }
+        const fallbackName =
+          (session.user.user_metadata as { full_name?: string } | undefined)?.full_name ??
+          session.user.email ??
+          "Member";
 
-      setUser({
-        id: session.user.id,
-        name: profile?.full_name ?? fallbackName,
-        role: (profile?.role ?? "member") as Role,
-        token: session.access_token,
-      });
+        if (!profile) {
+          const { data: createdProfile } = await supabaseClient
+            .from("profiles")
+            .upsert({
+              id: session.user.id,
+              full_name: fallbackName,
+              email: session.user.email ?? "",
+              role: "member",
+            })
+            .select("id, full_name, role")
+            .maybeSingle<ProfileRow>();
+
+          if (createdProfile) {
+            profile = createdProfile;
+          }
+        }
+
+        setUser({
+          id: session.user.id,
+          name: profile?.full_name ?? fallbackName,
+          role: (profile?.role ?? "member") as Role,
+          token: session.access_token,
+          apiToken: undefined,
+        });
+
+        // attempt to obtain a backend API JWT (dev-friendly flow)
+        (async () => {
+          try {
+            const API_URL = import.meta.env.VITE_API_URL ?? "";
+
+            // quick health-checks (try configured API_URL first, then relative)
+            const healthUrls = [] as string[];
+            if (API_URL) healthUrls.push(API_URL.replace(/\/$/, '') + "/health");
+            healthUrls.push('/health');
+
+            let backendAlive = false;
+            for (const url of healthUrls) {
+              try {
+                const h = await fetch(url, { method: 'GET' });
+                if (h.ok) { backendAlive = true; break; }
+              } catch (e) {
+                /* ignore - try next */
+              }
+            }
+
+            if (!backendAlive) {
+              // backend unavailable — skip backend login silently
+              return;
+            }
+
+            // try relative path first (uses Vite proxy in dev), then absolute API_URL if provided
+            const loginPaths = ['/api/auth/login'];
+            if (API_URL) loginPaths.push(API_URL.replace(/\/$/, '') + '/api/auth/login');
+
+            for (const path of loginPaths) {
+              try {
+                const res = await fetch(path, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email: session.user.email }),
+                });
+                if (!res.ok) continue;
+                const body = await res.json();
+                const apiToken = body.token as string | undefined;
+                setUser((prev) => (prev ? { ...prev, apiToken } : prev));
+                break;
+              } catch (e) {
+                /* try next path */
+              }
+            }
+          } catch (err) {
+            // silent: backend auth is an optional dev convenience
+            console.debug('backend auth login skipped or failed', err);
+          }
+        })();
+      } catch (err) {
+        const msg = String((err as any)?.message ?? err);
+        if (/invalid refresh token/i.test(msg)) {
+          // ensure we clear any stale session storage
+          await supabaseClient.auth.signOut();
+        }
+        console.warn('loadSession failed:', err);
+        setUser(null);
+      }
     };
 
     loadSession();

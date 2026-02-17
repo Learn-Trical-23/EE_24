@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { apiClient } from "../../integrations/api/client";
+import { useAuth } from "../../contexts/auth-context";
 
 interface User {
   id: string;
@@ -14,18 +15,20 @@ const RoleManagement: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
 
+  const { user } = useAuth();
+
   useEffect(() => {
     apiClient
-      .get<User[]>("/api/users")
+      .get<User[]>("/api/users", user?.apiToken)
       .then(setUsers)
       .catch(() => setError("Failed to load users."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [user?.apiToken]);
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     setUpdating(userId);
     try {
-      await apiClient.post(`/api/users/${userId}/role`, { role: newRole });
+      await apiClient.post(`/api/users/${userId}/role`, { role: newRole }, user?.apiToken);
       setUsers((prev) =>
         prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
       );

@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { apiClient } from "../../integrations/api/client";
 import RoleManagement from "./RoleManagement";
+import { useAuth } from "../../contexts/auth-context";
 
 interface Activity {
   id: string;
@@ -23,13 +24,15 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { user } = useAuth();
+
   useEffect(() => {
     apiClient
-      .get<Activity[]>("/api/activity/latest")
+      .get<Activity[]>("/api/activity/latest", user?.apiToken)
       .then(setActivities)
       .catch(() => setError("Failed to load activity log."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [user?.apiToken]);
 
   return (
     <div className="p-2 sm:p-6 max-w-3xl mx-auto">

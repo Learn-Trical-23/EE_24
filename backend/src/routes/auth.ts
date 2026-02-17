@@ -1,6 +1,6 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
-import { query } from "../db";
+import { query } from "../db.js";
 
 export const authRouter = Router();
 
@@ -9,13 +9,20 @@ export const authRouter = Router();
 authRouter.post("/login", async (req, res) => {
   const { email } = req.body as { email: string; password: string };
 
-  const users = await query<{ id: string; role: string; full_name: string }>(
+  let users = await query<{ id: string; role: string; full_name: string }>(
     "SELECT id, role, full_name FROM profiles WHERE email = $1",
     [email]
   );
 
+  // If the profile doesn't exist in the backend DB, create a minimal member profile so
+  // the backend can issue a JWT for the currently authenticated Supabase user.
   if (users.length === 0) {
-    return res.status(401).json({ message: "Invalid credentials" });
+    const displayName = email.split('@')[0];
+    const inserted = await query<{ id: string; role: string; full_name: string }>(
+      "INSERT INTO profiles (full_name, email, role) VALUES ($1, $2, $3) RETURNING id, role, full_name",
+      [displayName, email, 'member']
+    );
+    users = inserted;
   }
 
   const user = users[0];

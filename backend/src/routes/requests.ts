@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../middleware/auth";
-import { query } from "../db";
+import { authenticate, requireRole } from "../middleware/auth.js";
+import { query } from "../db.js";
 
 export const requestRouter = Router();
 

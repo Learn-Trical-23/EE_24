@@ -62,6 +62,70 @@ CREATE UNIQUE INDEX IF NOT EXISTS admin_requests_user_pending
   ON admin_requests (user_id)
   WHERE status = 'pending';
 
+-- Events (site-wide calendar)
+CREATE TABLE IF NOT EXISTS events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  datetime timestamptz NOT NULL,
+  mention_date date,
+  module text DEFAULT '',
+  kind text NOT NULL DEFAULT 'other', -- assignment | quiz | other
+  created_by uuid REFERENCES profiles(id) ON DELETE SET NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+-- ensure existing DBs get the column when schema is applied
+ALTER TABLE events ADD COLUMN IF NOT EXISTS mention_date date;
+
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Select events for authenticated"
+  ON events
+  FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Insert events by admin"
+  ON events
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles p
+      WHERE p.id = auth.uid()
+        AND p.role IN ('admin','super_admin')
+    )
+  );
+
+CREATE POLICY "Update events by admin"
+  ON events
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles p
+      WHERE p.id = auth.uid()
+        AND p.role IN ('admin','super_admin')
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles p
+      WHERE p.id = auth.uid()
+        AND p.role IN ('admin','super_admin')
+    )
+  );
+
+CREATE POLICY "Delete events by admin"
+  ON events
+  FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles p
+      WHERE p.id = auth.uid()
+        AND p.role IN ('admin','super_admin')
+    )
+  );
+
+CREATE INDEX IF NOT EXISTS events_datetime_idx ON events (datetime);
+
 -- MSD uploads (CS2833)
 CREATE TABLE IF NOT EXISTS msd_uploads (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
