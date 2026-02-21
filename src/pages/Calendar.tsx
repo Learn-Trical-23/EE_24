@@ -60,7 +60,9 @@ const Calendar = () => {
     loadCleanupStatus();
     const pollId = setInterval(loadCleanupStatus, 60_000);
 
-    return () => clearInterval(pollId);
+    return () => {
+      clearInterval(pollId);
+    };
   }, []);
 
   // Realtime subscription: auto-refresh when `events` change in Supabase (INSERT / UPDATE / DELETE)
@@ -114,21 +116,18 @@ const Calendar = () => {
     return d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" }) + ` · ${time}`;
   };
 
-  // hide past events from the UI (only show upcoming events)
-  const now = new Date();
+  // sort events by time; display everything fetched from the database (cleanup job will remove old rows)
 
   const sortByDatetimeAsc = (arr: Array<any>) =>
     arr.slice().sort((a: any, b: any) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
 
-  const upcomingEvents = sortByDatetimeAsc(
-    events.filter((ev) => new Date(ev.datetime).getTime() >= now.getTime())
-  );
+  const allSorted = sortByDatetimeAsc(events);
 
   const visibleEvents = selectedDate
     ? sortByDatetimeAsc(
-        upcomingEvents.filter((ev) => new Date(ev.datetime).toDateString() === new Date(selectedDate).toDateString())
+        allSorted.filter((ev) => new Date(ev.datetime).toDateString() === new Date(selectedDate).toDateString())
       )
-    : upcomingEvents; 
+    : allSorted;
 
   return (
     <div className="min-h-[calc(100vh-6rem)] py-6 px-4 lg:px-8">
@@ -262,7 +261,7 @@ const Calendar = () => {
               {loaded && (
                 <div className="mt-4 border-t border-white/6 pt-4">
                   <div className="text-xs text-white/60 mb-2">Month</div>
-                  <MonthCalendar compact events={upcomingEvents} selectedDate={selectedDate} onSelectDate={(d: string | null) => setSelectedDate(d)} />
+                  <MonthCalendar compact events={allSorted} selectedDate={selectedDate} onSelectDate={(d: string | null) => setSelectedDate(d)} />
                 </div>
               )}
             </CardContent>
@@ -282,7 +281,7 @@ const Calendar = () => {
 
             <CardContent>
               <MonthCalendar
-                events={upcomingEvents}
+                events={allSorted}
                 selectedDate={selectedDate}
                 onSelectDate={(d: string | null) => setSelectedDate(d)}
               />
